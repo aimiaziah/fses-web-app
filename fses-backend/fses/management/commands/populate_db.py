@@ -1,58 +1,108 @@
+# Safe version of fses/management/commands/populate_db.py
+
 from django.core.management.base import BaseCommand
 from fses.models import Department, Lecturer, Student, CustomUser, Nomination, Postponement
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
+from django.db import connection
 import random
 from datetime import timedelta
 
 class Command(BaseCommand):
     help = 'Populate database with dummy data'
 
+    def table_exists(self, table_name):
+        """Check if a table exists in the database"""
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = %s
+                );
+            """, [table_name])
+            return cursor.fetchone()[0]
+
     def handle(self, *args, **kwargs):
         self.stdout.write('Creating dummy data...')
         
-        # Create departments
+        # Check if tables exist before trying to clear them
+        tables_to_check = [
+            'fses_postponement',
+            'fses_nomination', 
+            'fses_student',
+            'fses_lecturer',
+            'fses_department'
+        ]
+        
+        missing_tables = []
+        for table in tables_to_check:
+            if not self.table_exists(table):
+                missing_tables.append(table)
+        
+        if missing_tables:
+            self.stdout.write(self.style.ERROR(f'Missing tables: {missing_tables}'))
+            self.stdout.write(self.style.ERROR('Please run "python manage.py migrate" first'))
+            return
+        
+        # Clear existing data safely
+        self.stdout.write('Clearing existing data...')
+        try:
+            Postponement.objects.all().delete()
+            Nomination.objects.all().delete()
+            Student.objects.all().delete()
+            Lecturer.objects.all().delete()
+            Department.objects.all().delete()
+            # Keep superusers, delete other users
+            CustomUser.objects.filter(is_superuser=False).delete()
+            self.stdout.write('Existing data cleared.')
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f'Could not clear some data: {e}'))
+        
+        # Create departments with UNIQUE codes
         departments_data = [
-            {'name': 'Computer Science'},
-            {'name': 'Engineering'},
-            {'name': 'Mathematics'},
-            {'name': 'Physics'},
-            {'name': 'Business'},
+            {'name': 'Computer Science', 'code': 'CS'},
+            {'name': 'Engineering', 'code': 'ENG'},
+            {'name': 'Mathematics', 'code': 'MATH'},
+            {'name': 'Physics', 'code': 'PHY'},
+            {'name': 'Business', 'code': 'BUS'},
         ]
         
         departments = []
         for dept_data in departments_data:
-            dept, created = Department.objects.get_or_create(**dept_data)
+            dept, created = Department.objects.get_or_create(
+                code=dept_data['code'],
+                defaults=dept_data
+            )
             departments.append(dept)
             if created:
-                self.stdout.write(f'Created department: {dept.name}')
+                self.stdout.write(f'Created department: {dept.name} ({dept.code})')
             else:
-                self.stdout.write(f'Department already exists: {dept.name}')
+                self.stdout.write(f'Department already exists: {dept.name} ({dept.code})')
         
         # Create users and lecturers
         lecturer_data = [
             {
-                'user': {'username': 'drsmith', 'email': 'smith@utm.edu', 'role': 'supervisor'},
+                'user': {'username': 'drsmith', 'email': 'smith@utm.edu', 'role': 'SUPERVISOR'},
                 'lecturer': {'name': 'Dr. Smith', 'title': 3, 'university': 'UTM', 'department': departments[0]}
             },
             {
-                'user': {'username': 'profjohnson', 'email': 'johnson@utm.edu', 'role': 'supervisor'},
+                'user': {'username': 'profjohnson', 'email': 'johnson@utm.edu', 'role': 'SUPERVISOR'},
                 'lecturer': {'name': 'Prof. Johnson', 'title': 1, 'university': 'UTM', 'department': departments[1]}
             },
             {
-                'user': {'username': 'drbrown', 'email': 'brown@utm.edu', 'role': 'supervisor'},
+                'user': {'username': 'drbrown', 'email': 'brown@utm.edu', 'role': 'SUPERVISOR'},
                 'lecturer': {'name': 'Dr. Michael Brown', 'title': 3, 'university': 'UTM', 'department': departments[1]}
             },
             {
-                'user': {'username': 'profchen', 'email': 'chen@nus.edu', 'role': 'supervisor'},
+                'user': {'username': 'profchen', 'email': 'chen@nus.edu', 'role': 'SUPERVISOR'},
                 'lecturer': {'name': 'Prof. Lisa Chen', 'title': 1, 'university': 'NUS', 'department': departments[0]}
             },
             {
-                'user': {'username': 'drkim', 'email': 'kim@mit.edu', 'role': 'supervisor'},
+                'user': {'username': 'drkim', 'email': 'kim@mit.edu', 'role': 'SUPERVISOR'},
                 'lecturer': {'name': 'Dr. David Kim', 'title': 3, 'university': 'MIT', 'department': departments[0]}
             },
             {
-                'user': {'username': 'drgarcia', 'email': 'garcia@utm.edu', 'role': 'supervisor'},
+                'user': {'username': 'drgarcia', 'email': 'garcia@utm.edu', 'role': 'SUPERVISOR'},
                 'lecturer': {'name': 'Dr. Maria Garcia', 'title': 3, 'university': 'UTM', 'department': departments[2]}
             },
         ]
@@ -66,11 +116,11 @@ class Command(BaseCommand):
                 defaults=user_data
             )
             
-            lecturer_data = data['lecturer']
-            lecturer_data['staff'] = user
+            lecturer_data_item = data['lecturer']
+            lecturer_data_item['staff'] = user
             lecturer, created = Lecturer.objects.get_or_create(
-                name=lecturer_data['name'],
-                defaults=lecturer_data
+                name=lecturer_data_item['name'],
+                defaults=lecturer_data_item
             )
             lecturers.append(lecturer)
             if created:
@@ -84,7 +134,7 @@ class Command(BaseCommand):
             defaults={
                 'email': 'office@utm.edu',
                 'password': make_password('password123'),
-                'role': 'office_assistant'
+                'role': 'OFFICE_ASSISTANT'
             }
         )
         if created:
@@ -98,7 +148,7 @@ class Command(BaseCommand):
             defaults={
                 'email': 'coordinator@utm.edu',
                 'password': make_password('password123'),
-                'role': 'program_coordinator'
+                'role': 'PROGRAM_COORDINATOR'
             }
         )
         if created:
@@ -112,7 +162,7 @@ class Command(BaseCommand):
             defaults={
                 'email': 'pgam@utm.edu',
                 'password': make_password('password123'),
-                'role': 'pgam'
+                'role': 'PGAM'
             }
         )
         if created:
@@ -229,7 +279,7 @@ class Command(BaseCommand):
                 'type': 'MEDICAL',
                 'requested_date': today + timedelta(days=60),
                 'comments': 'Will provide medical certificate',
-                'approved': True,
+                'approved': None,  # Pending status
             },
         ]
         
@@ -245,3 +295,13 @@ class Command(BaseCommand):
                 self.stdout.write(f'Postponement already exists for: {data["student"].name}')
         
         self.stdout.write(self.style.SUCCESS('Successfully populated database with dummy data'))
+        self.stdout.write('Created users:')
+        self.stdout.write('  - officeassistant / password123 (Office Assistant)')
+        self.stdout.write('  - coordinator / password123 (Program Coordinator)')
+        self.stdout.write('  - pgam / password123 (PGAM)')
+        self.stdout.write('  - drsmith / password123 (Supervisor)')
+        self.stdout.write('  - profjohnson / password123 (Supervisor)')
+        self.stdout.write('  - drbrown / password123 (Supervisor)')
+        self.stdout.write('  - profchen / password123 (Supervisor)')
+        self.stdout.write('  - drkim / password123 (Supervisor)')
+        self.stdout.write('  - drgarcia / password123 (Supervisor)')

@@ -48,7 +48,7 @@ class StudentSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Student
-        fields = ['id', 'name', 'department', 'department_id', 'supervisor', 'supervisor_id', 'program', 'evaluation_type', 'research_title']
+        fields = ['id', 'name', 'department', 'department_id', 'supervisor', 'supervisor_id', 'co_supervisors', 'program', 'evaluation_type', 'research_title']
 
 class NominationSerializer(serializers.ModelSerializer):
     student = StudentSerializer(read_only=True)
@@ -89,6 +89,7 @@ class NominationSerializer(serializers.ModelSerializer):
             'examiner1', 'examiner1_id', 'examiner2', 'examiner2_id', 'examiner3', 'examiner3_id',
             'examiner1_name', 'examiner1_email', 'examiner1_university',
             'examiner2_name', 'examiner2_email', 'examiner2_university',
+            'chairperson', 'is_locked',  # Added chairperson and is_locked fields
             'created_at', 'updated_at'
         ]
 

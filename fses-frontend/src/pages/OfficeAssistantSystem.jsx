@@ -12,6 +12,7 @@ const OfficeAssistantSystem = () => {
   const [modalType, setModalType] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCoSupervisor, setSelectedCoSupervisor] = useState('');
 
   const { students, loading: studentsLoading, error: studentsError, createStudent, updateStudent, deleteStudent } = useStudents();
   const { lecturers, loading: lecturersLoading, error: lecturersError, createLecturer, updateLecturer, deleteLecturer } = useLecturers();
@@ -66,12 +67,14 @@ const OfficeAssistantSystem = () => {
         staff: null
       });
     }
+    setSelectedCoSupervisor('');
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setSelectedStudent(null);
+    setSelectedCoSupervisor('');
     setFormData({
       name: '',
       department: '',
@@ -85,10 +88,43 @@ const OfficeAssistantSystem = () => {
     });
   };
 
+  const handleAddCoSupervisor = () => {
+    if (selectedCoSupervisor && !formData.coSupervisors.includes(selectedCoSupervisor)) {
+      setFormData({
+        ...formData,
+        coSupervisors: [...formData.coSupervisors, selectedCoSupervisor]
+      });
+      setSelectedCoSupervisor('');
+    }
+  };
+
+  const handleRemoveCoSupervisor = (supervisorId) => {
+    setFormData({
+      ...formData,
+      coSupervisors: formData.coSupervisors.filter(id => id !== supervisorId)
+    });
+  };
+
+  const getLecturerName = (lecturerId) => {
+    const lecturer = lecturers.find(l => l.id === parseInt(lecturerId));
+    return lecturer ? lecturer.name : 'Unknown';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     try {
+      // Check if user is authenticated and has the right role
+      if (!user) {
+        alert('You are not authenticated. Please log in again.');
+        return;
+      }
+
+      if (user.role !== 'office_assistant' && !user.is_staff) {
+        alert(`You don't have permission to ${selectedStudent ? 'update' : 'create'} students. Your role: ${user.role || 'No role assigned'}`);
+        return;
+      }
+
       // Format the data properly before sending
       const dataToSend = {
         ...formData,
@@ -120,11 +156,20 @@ const OfficeAssistantSystem = () => {
         closeModal();
       } else {
         // More detailed error message
-        alert(`Error: ${result.error || 'Unknown error occurred'}`);
+        console.error('Operation failed:', result.error);
+        if (result.error && result.error.includes('403')) {
+          alert('Permission denied. Please ensure you are logged in as an office assistant.');
+        } else {
+          alert(`Error: ${result.error || 'Unknown error occurred'}`);
+        }
       }
     } catch (error) {
       console.error("Form submission error:", error);
-      alert(`An error occurred: ${error.message || 'Unknown error'}`);
+      if (error.response && error.response.status === 403) {
+        alert('Permission denied. Your session may have expired. Please refresh the page and log in again.');
+      } else {
+        alert(`An error occurred: ${error.message || 'Unknown error'}`);
+      }
     }
   };
 
@@ -138,7 +183,11 @@ const OfficeAssistantSystem = () => {
       }
 
       if (!result.success) {
-        alert(result.error);
+        if (result.error && result.error.includes('403')) {
+          alert('Permission denied. Please ensure you are logged in as an office assistant.');
+        } else {
+          alert(result.error);
+        }
       }
     }
   };
@@ -334,7 +383,7 @@ const OfficeAssistantSystem = () => {
   const Modal = () => (
     showModal && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
           <h3 className="text-lg font-semibold mb-4">
             {selectedStudent ? 'Edit' : 'Add'} {modalType === 'student' ? 'Student' : 'Lecturer'}
           </h3>
@@ -384,19 +433,49 @@ const OfficeAssistantSystem = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Co-Supervisors</label>
-                  <select
-                    multiple
-                    value={formData.coSupervisors}
-                    onChange={(e) => {
-                      const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-                      setFormData({ ...formData, coSupervisors: selectedOptions });
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500"
-                  >
-                    {lecturers.map(lecturer => (
-                      <option key={lecturer.id} value={lecturer.id}>{lecturer.name}</option>
-                    ))}
-                  </select>
+                  <div className="flex space-x-2 mb-2">
+                    <select
+                      value={selectedCoSupervisor}
+                      onChange={(e) => setSelectedCoSupervisor(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500"
+                    >
+                      <option value="">Select co-supervisor</option>
+                      {lecturers
+                        .filter(lecturer => 
+                          lecturer.id !== parseInt(formData.supervisor) && 
+                          !formData.coSupervisors.includes(lecturer.id.toString())
+                        )
+                        .map(lecturer => (
+                          <option key={lecturer.id} value={lecturer.id}>{lecturer.name}</option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleAddCoSupervisor}
+                      disabled={!selectedCoSupervisor}
+                      className="px-4 py-2 bg-burgundy-700 text-white rounded-md hover:bg-burgundy-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  
+                  {/* Selected Co-Supervisors List */}
+                  {formData.coSupervisors.length > 0 && (
+                    <div className="border border-gray-200 rounded-md p-2 space-y-1">
+                      {formData.coSupervisors.map(supervisorId => (
+                        <div key={supervisorId} className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded">
+                          <span className="text-sm">{getLecturerName(supervisorId)}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCoSupervisor(supervisorId)}
+                            className="text-red-600 hover:text-red-800 text-sm font-medium"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -480,6 +559,15 @@ const OfficeAssistantSystem = () => {
     )
   );
 
+  // Show user role and authentication status for debugging
+  useEffect(() => {
+    if (user) {
+      console.log('Current user:', user);
+      console.log('User role:', user.role);
+      console.log('Is staff:', user.is_staff);
+    }
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow">
@@ -492,7 +580,10 @@ const OfficeAssistantSystem = () => {
               <h1 className="ml-3 text-xl font-bold text-burgundy-700">Office Assistant Portal</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-600">Welcome, {user?.username || 'Office Staff'}</span>
+              <span className="text-gray-600">
+                Welcome, {user?.username || 'Office Staff'} 
+                {user?.role && <span className="text-xs text-gray-500"> ({user.role})</span>}
+              </span>
               <LogoutButton />
             </div>
           </div>

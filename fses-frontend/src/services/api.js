@@ -19,12 +19,10 @@ const getCSRFToken = async () => {
   if (!csrfToken) {
     try {
       const response = await api.get('/auth/csrf/');
-      // Get CSRF token from cookie or response header
-      const cookies = document.cookie.split(';');
-      const csrfCookie = cookies.find(cookie => cookie.trim().startsWith('csrftoken='));
-      if (csrfCookie) {
-        csrfToken = csrfCookie.split('=')[1];
-      }
+      csrfToken = response.data.csrfToken;
+      
+      // Set CSRF token in cookies
+      document.cookie = `csrftoken=${csrfToken}; path=/`;
     } catch (error) {
       console.error('Failed to get CSRF token:', error);
     }
@@ -32,7 +30,7 @@ const getCSRFToken = async () => {
   return csrfToken;
 };
 
-// Request interceptor to add CSRF token
+// Request interceptor to add CSRF token and Authorization header
 api.interceptors.request.use(async (config) => {
   if (['post', 'put', 'delete', 'patch'].includes(config.method)) {
     const token = await getCSRFToken();
@@ -40,6 +38,13 @@ api.interceptors.request.use(async (config) => {
       config.headers['X-CSRFToken'] = token;
     }
   }
+  
+  // Add Authorization header if token exists in localStorage
+  const authToken = localStorage.getItem('authToken');
+  if (authToken) {
+    config.headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  
   return config;
 });
 
@@ -49,7 +54,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Clear auth state and redirect to login
-      window.location.href = '/';
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
@@ -65,38 +71,47 @@ export const authAPI = {
 
 // Student API
 export const studentAPI = {
-  getAll: () => api.get('/fses/api/students/'),
-  getById: (id) => api.get(`/fses/api/student/${id}/`),
-  create: (data) => api.post('/fses/api/student/create/', data),  // Note the trailing slash
-  update: (id, data) => api.put(`/fses/api/student/update/${id}/`, data),
-  delete: (id) => api.delete(`/fses/api/student/delete/${id}/`),
+  getAll: () => api.get('/api/students/'),
+  getById: (id) => api.get(`/api/students/${id}/`),
+  create: (data) => api.post('/api/students/', data),
+  update: (id, data) => api.put(`/api/students/${id}/`, data),
+  delete: (id) => api.delete(`/api/students/${id}/`),
 };
 
 // Lecturer API
 export const lecturerAPI = {
-  getAll: () => api.get('/fses/api/lecturers/'),
-  getById: (id) => api.get(`/fses/api/lecturer/${id}/`),
-  create: (data) => api.post('/fses/api/lecturer/create', data),
-  update: (id, data) => api.put(`/fses/api/lecturer/update/${id}/`, data),
-  delete: (id) => api.delete(`/fses/api/lecturer/delete/${id}/`),
+  getAll: () => api.get('/api/lecturers/'),
+  getById: (id) => api.get(`/api/lecturers/${id}/`),
+  create: (data) => api.post('/api/lecturers/', data),
+  update: (id, data) => api.put(`/api/lecturers/${id}/`, data),
+  delete: (id) => api.delete(`/api/lecturers/${id}/`),
 };
 
 // Department API
 export const departmentAPI = {
-  getAll: () => api.get('/fses/api/departments/'),
-  getById: (id) => api.get(`/fses/api/department/${id}/`),
-  create: (data) => api.post('/fses/api/department/create', data),
-  update: (id, data) => api.put(`/fses/api/department/update/${id}/`, data),
-  delete: (id) => api.delete(`/fses/api/department/delete/${id}/`),
+  getAll: () => api.get('/api/departments/'),
+  getById: (id) => api.get(`/api/departments/${id}/`),
+  create: (data) => api.post('/api/departments/', data),
+  update: (id, data) => api.put(`/api/departments/${id}/`, data),
+  delete: (id) => api.delete(`/api/departments/${id}/`),
 };
 
 // Nomination API
 export const nominationAPI = {
-  getAll: () => api.get('/fses/api/nominations/'),
-  getById: (id) => api.get(`/fses/api/nomination/${id}/`),
-  create: (data) => api.post('/fses/api/nomination/create', data),
-  update: (id, data) => api.put(`/fses/api/nomination/update/${id}/`, data),
-  delete: (id) => api.delete(`/fses/api/nomination/delete/${id}/`),
+  getAll: () => api.get('/api/nominations/'),
+  getById: (id) => api.get(`/api/nominations/${id}/`),
+  create: (data) => api.post('/api/nominations/', data),
+  update: (id, data) => api.put(`/api/nominations/${id}/`, data),
+  delete: (id) => api.delete(`/api/nominations/${id}/`),
+};
+
+// Postponement API
+export const postponementAPI = {
+  getAll: () => api.get('/api/postponements/'),
+  getById: (id) => api.get(`/api/postponements/${id}/`),
+  create: (data) => api.post('/api/postponements/', data),
+  update: (id, data) => api.put(`/api/postponements/${id}/`, data),
+  delete: (id) => api.delete(`/api/postponements/${id}/`),
 };
 
 export default api;
