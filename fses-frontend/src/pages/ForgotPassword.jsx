@@ -1,65 +1,45 @@
 import React from 'react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 
 const ForgotPassword = () => {
     const [username, setUsername] = useState('');
-      const [password, setPassword] = useState('');
-      const [loading, setLoading] = useState(false);
-      const [error, setError] = useState('');
-      const { login } = useAuth();
-      const navigate = useNavigate();
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const { user } = useAuth();
+    const navigate = useNavigate();
     
-      const handleLogin = async () => {
-        if (!username || !password) {
-          setError('Please enter both username and password');
+      const handleForgotPassword = async () => {
+        if (!username) {
+          setError('Please enter your staff ID or email');
           return;
         }
     
         setLoading(true);
         setError('');
     
-        const result = await login({ username, password });
-        
-        if (result.success) {
-          // Navigate based on user role from Django backend
-          const user = result.user;
-          const isFirstTime = user.is_first_time || false;
-          console.log(isFirstTime); 
-          if (isFirstTime) {
-            // Redirect to first time setup page
-            navigate('/first-time-setup');
-            return;
-          } else {
-            console.log(user.role); // Debugging line to check user role
-            switch (user.role) {
-              case 'OFFICE_ASSISTANT':
-                navigate('/officeAssistant');
-                break;
-              case 'SUPERVISOR':
-                navigate('/supervisor');
-                break;
-              case 'PROGRAM_COORDINATOR':
-                navigate('/programCoordinator');
-                break;
-              case 'PGAM':
-                navigate('/pgam');
-                break;
-              default:
-                setError('Unknown user role. Please contact administrator.');
-            }
-          }
-        } else {
-          setError(result.error);
-        }
-        
-        setLoading(false);
+        axios.post('http://localhost:8000/auth/generate-reset-code/', {
+          username: username})
+        .then(response => {
+          console.log('Reset code sent successfully:', response.data);
+          alert('A reset code has been sent to your email. Please check your inbox.');
+          navigate('/'); // Redirect to login page after successful request
+        })
+        .catch(error => {
+          console.error('Error sending reset code:', error);
+          setError('Failed to send reset code. Please try again.');
+        })
+        .finally(() => {
+          setLoading(false);
+        })
       };
     
       const handleKeyPress = (e) => {
         if (e.key === 'Enter') {
-          handleLogin();
+          handleForgotPassword();
         }
       };
     
@@ -94,7 +74,7 @@ const ForgotPassword = () => {
               <div className="space-y-4">
                 <div>
                   <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-                    Staff ID / Username
+                    Staff ID / Email
                   </label>
                   <input
                     type="text"
@@ -108,27 +88,22 @@ const ForgotPassword = () => {
                     required
                   />
                 </div>
-    
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    disabled={loading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500 focus:border-transparent disabled:bg-gray-100"
-                    placeholder="Enter your password"
-                    required
-                    minLength={8}
-                  />
+
+                <div className="text-center">
+                    <a
+                        href="#"
+                        className="text-sm text-burgundy-600 hover:text-burgundy-800 underline"
+                        onClick={(e) => {
+                        e.preventDefault();
+                        navigate('/'); 
+                    }}
+                    >
+                    Back to Login Page
+                    </a>
                 </div>
     
                 <button
-                  onClick={handleLogin}
+                  onClick={handleForgotPassword}
                   disabled={loading}
                   className="w-full bg-burgundy-700 text-white py-2 px-4 rounded-md hover:bg-burgundy-800 focus:outline-none focus:ring-2 focus:ring-burgundy-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
@@ -138,13 +113,13 @@ const ForgotPassword = () => {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Logging in...
+                      Resetting Password...
                     </>
                   ) : (
                     'Reset Password'
                   )}
                 </button>
-    
+
               </div>
             </div>
     

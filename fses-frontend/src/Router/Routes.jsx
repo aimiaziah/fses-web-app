@@ -12,6 +12,7 @@ import PGAM from "../pages/PGAM";
 import ProtectedRoute from "../components/ProtectedRoute";
 import FirstTime from "../pages/FirstTime";
 import ForgotPassword from "../pages/ForgotPassword";
+import ResetPassword from "../pages/PasswordReset";
 
 export const router = createBrowserRouter([
     {
@@ -64,6 +65,12 @@ export const router = createBrowserRouter([
                 path: '/forgot-password',
                 element: (
                     <ForgotPassword />
+                )
+            },
+            {
+                path: '/reset-password',
+                element: (
+                    <ResetPassword />
                 )
             }
         ],
