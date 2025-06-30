@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, BarChart3, BookOpen, Users, Calendar, Eye, Download, Filter, Search, LogOut, Edit, Save, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import LogoutButton from '../components/LogoutButton';
+import { useStudents } from '../hooks/useStudents';
+import { useLecturers } from '../hooks/useLecturers';
+import { useNominations } from '../hooks/useNominations';
+import { useDepartments } from '../hooks/useDepartments';
 
 const PGAM = () => {
   const [currentPage, setCurrentPage] = useState('overview');
@@ -13,148 +17,57 @@ const PGAM = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
 
-  // Sample comprehensive data that PGAM would see
-  const [allStudents, setAllStudents] = useState([
-     {
-      id: 1,
-      name: "AHMAD FAIRUZ BIN ALI",
-      matrikNo: "PRT203089",
-      program: "PhD",
-      department: 'SEAT', // You'll need to assign departments
-      evaluationType: "First Evaluation",
-      semester: 3,
-      mainSupervisor: "DR. NORSHALIZA KAMARUDDIN",
-      coSupervisor: "DR. HAZLIFAH BINTI MOHD RUSLI",
-      researchTitle: "Causal inference in banking sector",
-      examiner1: "PM Ts. DR. SITI SOPHIAYATI BINTI YUHANIZ",
-      examiner2: "DR. NILAM NUR BINTI AMIR SJARIF",
-      examiner3: "DR. AZIZUL BIN AZIZAN",
-      chairperson: "PM DR. ROZANA ZAKARIA",
-      status: "Chair Assigned",
-      coordinator: 'Dr. Rahman Ali' // You'll need to assign coordinators
-    },
-    {
-      id: 2,
-      name: "AINUL FARHAH BINTI MOHD FAHIMEY",
-      matrikNo: "MRT233008",
-      program: "MPhil",
-      department: 'II', // Assign appropriate department
-      evaluationType: "First Evaluation",
-      semester: 2,
-      mainSupervisor: "AP. TS. DR. MASLIN BTE MASROM",
-      coSupervisor: "",
-      researchTitle: "ENHANCING LEARNING MANAGEMENT SYSTEM UTILIZATION FOR VOCATIONAL COLLEGES IN MALAYSIA: A MODEL FOR OPTIMIZATION",
-      examiner1: "PM Ts. DR. ASNUL DAHAR BIN MINGHAT (UTM-FSSH)",
-      examiner2: "DR. MOHD SYAHID BIN MOHD ANUAR",
-      examiner3: "Ts. DR. HASLINA BINTI MD. SARKAN",
-      chairperson: "PM DR. WAN NORMEZA BINTI WAN ZAKARIA",
-      status: "Chair Assigned",
-      coordinator: 'Dr. Fatimah Wong' // Assign appropriate coordinator
-    },
-    {
-      id: 3,
-      name: "ANIS AFIQAH BINTI SHARIP",
-      matrikNo: "PRT233007",
-      program: "PhD",
-      department: 'CAI', // Assign appropriate department
-      evaluationType: "First Evaluation",
-      semester: 3,
-      mainSupervisor: "AP. TS. DR. MOHD NAZ'RI BIN MAHRIN",
-      coSupervisor: "DR. OTHMAN BIN MOHD YUSOP",
-      researchTitle: "Design Thinking Framework for Requirements Elicitation with Cognitive Consideration for Older Adults",
-      examiner1: "PROF. DR. SHAMSUL BIN SAHIBUDDIN",
-      examiner2: "Ts. DR. HASLINA BINTI MD. SARKAN",
-      examiner3: "DR. HAZLIFAH BINTI MOHD RUSLI",
-      chairperson: "PROF. Ts. DR. KHAIRUR RIJAL BIN JAMALUDIN",
-      status: "Chair Assigned",
-      coordinator: 'Dr. Alex Lee' // Assign appropriate coordinator
-    },
-    {
-      id: 4,
-      name: "AYMEN YOUSEF AHMED ASHAWESH",
-      matrikNo: "PRT213048",
-      program: "PhD",
-      department: 'BIHG', // Assign appropriate department
-      evaluationType: "Re-Evaluation",
-      semester: 7,
-      mainSupervisor: "TS. DR. SAIFUL ADLI ISMAIL",
-      coSupervisor: "TS. DR. NUR AZALIAH ABU BAKAR",
-      researchTitle: "TOWARDS THE ADOPTION OF DISTANT LEARNING IN CONFLICT ZONES: CHALLENGES, OPPORTUNITIES, AND AFFECTING FACTORS IN LIBYA",
-      examiner1: "PM DR. ROSLINA BINTI IBRAHIM",
-      examiner2: "TS. DR. NORZIHA BINTI MEGAT MOHD ZAINUDDIN",
-      examiner3: "DR. YAZRIWATI BINTI YAHYA",
-      chairperson: "PM Sr DR. SITI UZAIRIAH BINTI MOHD TOBI",
-      status: "Chair Assigned",
-      coordinator: 'Dr. Kumar Singh' // Assign appropriate coordinator
-    },
-    {
-      id: 5,
-      name: "BAHAA SALIM ABDULAMEER ABDULAMEER",
-      matrikNo: "PRT223046",
-      program: "PhD",
-      department: 'CAI', // Assign appropriate department
-      evaluationType: "Re-Evaluation",
-      semester: 4,
-      mainSupervisor: "TS. DR. NORAIMI SHAFIE",
-      coSupervisor: "",
-      researchTitle: "EXPLAINABLE ARTIFICIAL INTELLIGENCE (XAI) TECHNIQUES IN LUNG DISEASE TO ENHANCE TRUSTWORTHY",
-      examiner1: "PM Ts. DR. NORLIZA BINTI MOHAMED",
-      examiner2: "PM DR. RUDZIDATUL AKMAM BT DZIYAUDDIN",
-      examiner3: "DR. AZIZUL BIN AZIZAN",
-      chairperson: "PM Sr DR. SITI UZAIRIAH BINTI MOHD TOBI",
-      status: "Chair Assigned",
-      coordinator: 'Dr. Alex Lee' // Assign appropriate coordinator
-    }
-  ].map(student => ({
-    ...student,
-    name: student.name.toUpperCase(),
-    researchTitle: student.researchTitle.toUpperCase(),
-    mainSupervisor: student.mainSupervisor.toUpperCase(),
-    coSupervisor: student.coSupervisor ? student.coSupervisor.toUpperCase() : '',
-    examiner1: student.examiner1.toUpperCase(),
-    examiner2: student.examiner2.toUpperCase(),
-    examiner3: student.examiner3.toUpperCase(),
-    chairperson: student.chairperson ? student.chairperson.toUpperCase() : '',
-    coordinator: student.coordinator ? student.coordinator.toUpperCase() : ''
-  })));
+  // Use hooks to get data from backend
+  const { students, loading: studentsLoading } = useStudents();
+  const { lecturers } = useLecturers();
+  const { nominations, updateNomination } = useNominations();
+  const { departments } = useDepartments();
 
   // Available examiners and chairpersons
-  const availableExaminers = [
-    'PROF. DR. SHAMSUL BIN SAHIBUDDIN',
-    'PM Ts. DR. SITI SOPHIAYATI BINTI YUHANIZ',
-    'DR. NILAM NUR BINTI AMIR SJARIF',
-    'DR. AZIZUL BIN AZIZAN',
-    'PM DR. ROSLINA BINTI IBRAHIM',
-    'TS. DR. NORZIHA BINTI MEGAT MOHD ZAINUDDIN',
-    'DR. YAZRIWATI BINTI YAHYA',
-    'PM Ts. DR. NORLIZA BINTI MOHAMED',
-    'PM DR. RUDZIDATUL AKMAM BT DZIYAUDDIN',
-    'Ts. DR. HASLINA BINTI MD. SARKAN',
-    'DR. HAZLIFAH BINTI MOHD RUSLI',
-    'DR. MOHD SYAHID BIN MOHD ANUAR',
-    'PM Ts. DR. ASNUL DAHAR BIN MINGHAT (UTM-FSSH)'
-  ];
+  const availableExaminers = lecturers.filter(l => l.university === 'UTM').map(l => l.name.toUpperCase());
+  const availableChairpersons = lecturers.filter(l => l.university === 'UTM' && l.title === 1).map(l => l.name.toUpperCase());
 
-  const availableChairpersons = [
-    'PM DR. ROZANA ZAKARIA',
-    'PM DR. WAN NORMEZA BINTI WAN ZAKARIA',
-    'PROF. Ts. DR. KHAIRUR RIJAL BIN JAMALUDIN',
-    'PM Sr DR. SITI UZAIRIAH BINTI MOHD TOBI',
-    'PM DR. RUDZIDATUL AKMAM BT DZIYAUDDIN',
-    'PM Ts. DR. ROSLINA BINTI MOHAMMAD',
-    'PM Ts. DR. MOHD KHAIRI BIN ABU HUSSAIN',
-    'PROF. DR. AHMAD KAMIL MAHMOOD',
-    'PM DR. NURULHUDA FIRDAUS BINTI MOHD. AZMI',
-    'DR. RAHMAN KASSIM'
-  ];
-
-  const departments = ['SEAT', 'II', 'BIHG', 'CAI'];
+  // Process students data with nominations
+  const allStudents = students.map(student => {
+    const nomination = nominations.find(nom => nom.student && nom.student.id === student.id);
+    
+    const supervisorName = typeof student.supervisor === 'object' 
+      ? student.supervisor.name 
+      : lecturers.find(l => l.id === student.supervisor)?.name || '';
+    
+    const coSupervisorName = typeof student.co_supervisor === 'object'
+      ? student.co_supervisor?.name || ''
+      : lecturers.find(l => l.id === student.co_supervisor)?.name || '';
+    
+    const departmentInfo = typeof student.department === 'object'
+      ? student.department
+      : departments.find(d => d.id === student.department) || {};
+    
+    return {
+      id: student.id,
+      name: student.name?.toUpperCase() || '',
+      matrikNo: student.matrik_no || `STD${student.id}`,
+      program: student.program || '',
+      department: departmentInfo.name || departmentInfo.code || 'N/A',
+      evaluationType: student.evaluation_type === 'FIRST_EVALUATION' ? 'First Evaluation' : 'Re-Evaluation',
+      semester: student.semester || 1,
+      mainSupervisor: supervisorName.toUpperCase(),
+      coSupervisor: coSupervisorName.toUpperCase(),
+      researchTitle: student.research_title?.toUpperCase() || '',
+      examiner1: nomination?.examiner1?.name?.toUpperCase() || '',
+      examiner2: nomination?.examiner2?.name?.toUpperCase() || '',
+      examiner3: nomination?.examiner3?.name?.toUpperCase() || '',
+      chairperson: nomination?.chairperson?.toUpperCase() || '',
+      status: nomination ? (nomination.chairperson ? 'Chair Assigned' : 'Pending Chair Assignment') : 'Pending Examiner Nomination',
+      coordinator: 'PROGRAM COORDINATOR' // This could be enhanced to show actual coordinator
+    };
+  });
 
   // Calculate comprehensive statistics
   const stats = {
     total: allStudents.length,
     byDepartment: departments.reduce((acc, dept) => {
-      acc[dept] = allStudents.filter(s => s.department === dept).length;
+      acc[dept.name] = allStudents.filter(s => s.department === dept.name).length;
       return acc;
     }, {}),
     byStatus: {
@@ -163,8 +76,8 @@ const PGAM = () => {
       'Pending Examiner Nomination': allStudents.filter(s => s.status === 'Pending Examiner Nomination').length
     },
     byProgram: {
-      'PhD': allStudents.filter(s => s.program === 'PhD').length,
-      'MPhil': allStudents.filter(s => s.program === 'MPhil').length,
+      'PHD': allStudents.filter(s => s.program === 'PHD').length,
+      'MPHIL': allStudents.filter(s => s.program === 'MPHIL').length,
       'DSE': allStudents.filter(s => s.program === 'DSE').length
     }
   };
@@ -216,96 +129,106 @@ const PGAM = () => {
     }));
   };
 
-  const handleSaveChanges = () => {
-    setAllStudents(prev => 
-      prev.map(student => 
-        student.id === editingStudent.id ? editingStudent : student
-      )
-    );
-    closeModal();
+  const handleSaveChanges = async () => {
+    const nomination = nominations.find(nom => nom.student && nom.student.id === editingStudent.id);
+    
+    if (nomination) {
+      const examiner1 = lecturers.find(l => l.name.toUpperCase() === editingStudent.examiner1);
+      const examiner2 = lecturers.find(l => l.name.toUpperCase() === editingStudent.examiner2);
+      const examiner3 = lecturers.find(l => l.name.toUpperCase() === editingStudent.examiner3);
+      
+      const updateData = {
+        ...nomination,
+        examiner1: examiner1?.id || nomination.examiner1,
+        examiner2: examiner2?.id || nomination.examiner2,
+        examiner3: examiner3?.id || nomination.examiner3,
+        chairperson: editingStudent.chairperson
+      };
+      
+      const result = await updateNomination(nomination.id, updateData);
+      
+      if (result.success) {
+        closeModal();
+      } else {
+        alert('Failed to update: ' + result.error);
+      }
+    }
   };
 
   const OverviewPage = () => (
     <div className="space-y-6">
-      {/* Key Statistics */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <Users className="h-8 w-8 text-blue-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Students</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+              <div className="text-sm text-gray-500">Total Students</div>
             </div>
+            <BookOpen className="h-8 w-8 text-burgundy-600" />
           </div>
         </div>
+
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <Calendar className="h-8 w-8 text-green-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Ready for Evaluation</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.byStatus['Chair Assigned']}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-green-600">{stats.byStatus['Chair Assigned']}</div>
+              <div className="text-sm text-gray-500">Chair Assigned</div>
             </div>
+            <Users className="h-8 w-8 text-green-600" />
           </div>
         </div>
+
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <Eye className="h-8 w-8 text-yellow-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Pending Assignment</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.byStatus['Pending Chair Assignment'] || 0}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-yellow-600">{stats.byStatus['Pending Chair Assignment']}</div>
+              <div className="text-sm text-gray-500">Pending Chair</div>
             </div>
+            <Calendar className="h-8 w-8 text-yellow-600" />
           </div>
         </div>
+
         <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <BookOpen className="h-8 w-8 text-red-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Pending Nomination</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats.byStatus['Pending Examiner Nomination'] || 0}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-2xl font-bold text-red-600">{stats.byStatus['Pending Examiner Nomination']}</div>
+              <div className="text-sm text-gray-500">No Examiners</div>
             </div>
+            <Eye className="h-8 w-8 text-red-600" />
           </div>
         </div>
       </div>
 
-      {/* Department Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Students by Department</h3>
-          <div className="space-y-3">
-            {departments.map(dept => (
-              <div key={dept} className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700">{dept}</span>
-                <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                  {stats.byDepartment[dept]}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Students by Program</h3>
-          <div className="space-y-3">
-            {Object.entries(stats.byProgram).map(([program, count]) => (
-              <div key={program} className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700">{program}</span>
-                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-                  {count}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Process Status Overview */}
+      {/* Department Statistics */}
       <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Evaluation Process Status</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Students by Department</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Object.entries(stats.byDepartment).map(([dept, count]) => (
+            <div key={dept} className="text-center">
+              <div className="text-2xl font-bold text-burgundy-600">{count}</div>
+              <div className="text-sm text-gray-500">{dept}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Program Distribution */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Program Distribution</h3>
         <div className="space-y-3">
-          {Object.entries(stats.byStatus).map(([status, count]) => (
-            <div key={status} className="flex justify-between items-center p-3 bg-gray-50 rounded">
-              <span className="text-sm font-medium text-gray-700">{status}</span>
-              <span className="text-lg font-semibold text-gray-900">{count}</span>
+          {Object.entries(stats.byProgram).map(([program, count]) => (
+            <div key={program} className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">{program}</span>
+              <div className="flex items-center">
+                <div className="w-32 bg-gray-200 rounded-full h-2 mr-2">
+                  <div 
+                    className="bg-burgundy-600 h-2 rounded-full" 
+                    style={{ width: `${(count / stats.total) * 100}%` }}
+                  ></div>
+                </div>
+                <span className="text-sm text-gray-600">{count}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -317,44 +240,46 @@ const PGAM = () => {
     <div className="space-y-6">
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-          <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
-            <div className="flex items-center space-x-2">
-              <Filter size={16} className="text-gray-500" />
-              <select
-                value={filterDepartment}
-                onChange={(e) => setFilterDepartment(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500"
-              >
-                <option value="all">All Departments</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Search size={16} className="text-gray-500" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search students, titles, supervisors..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500 w-64"
+                className="pl-10 pr-3 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-burgundy-500"
+                placeholder="Search students, research titles..."
               />
             </div>
           </div>
-          <button
-            onClick={() => alert('Downloading comprehensive report...')}
-            className="px-4 py-2 bg-burgundy-700 text-white rounded-md hover:bg-burgundy-800 flex items-center space-x-2"
-          >
-            <Download size={16} />
-            <span>Export Report</span>
-          </button>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+            <select
+              value={filterDepartment}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500"
+            >
+              <option value="all">All Departments</option>
+              {departments.map(dept => (
+                <option key={dept.id} value={dept.name}>{dept.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <button className="bg-burgundy-700 text-white px-4 py-2 rounded-md hover:bg-burgundy-800 flex items-center space-x-2">
+              <Download size={16} />
+              <span>Export Report</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Students Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -383,44 +308,30 @@ const PGAM = () => {
                     {student.department}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-6 py-4">
                   <div className="text-sm text-gray-900">{student.mainSupervisor}</div>
                   {student.coSupervisor && (
                     <div className="text-xs text-gray-500">Co: {student.coSupervisor}</div>
                   )}
                 </td>
                 <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900 max-w-xs truncate" title={student.researchTitle}>
-                    {student.researchTitle}
-                  </div>
+                  <div className="text-sm text-gray-900 line-clamp-2">{student.researchTitle}</div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-xs space-y-1">
-                    <div>1: {student.examiner1 || 'Not assigned'}</div>
-                    <div>2: {student.examiner2 || 'Not assigned'}</div>
-                    <div>3: {student.examiner3 || 'Not assigned'}</div>
+                    <div>{student.examiner1 || <span className="text-gray-400">Pending</span>}</div>
+                    <div>{student.examiner2 || <span className="text-gray-400">Pending</span>}</div>
+                    <div>{student.examiner3 || <span className="text-gray-400">Pending</span>}</div>
                   </div>
-                  <button 
-                    onClick={() => openEditModal(student, 'examiners')}
-                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                  >
-                    <Edit size={12} className="mr-1" /> Edit Examiners
-                  </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {student.chairperson || 'Not assigned'}
+                    {student.chairperson || <span className="text-gray-400">Not Assigned</span>}
                   </div>
-                  <button 
-                    onClick={() => openEditModal(student, 'chairperson')}
-                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                  >
-                    <Edit size={12} className="mr-1" /> Edit Chairperson
-                  </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    student.status === 'Chair Assigned' 
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    student.status === 'Chair Assigned'
                       ? 'bg-green-100 text-green-800'
                       : student.status === 'Pending Chair Assignment'
                       ? 'bg-yellow-100 text-yellow-800'
@@ -506,7 +417,7 @@ const PGAM = () => {
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-purple-600">
-              {Math.round(Object.values(examinerWorkload).reduce((a, b) => a + b, 0) / Object.keys(examinerWorkload).length * 100) / 100}
+              {Math.round(Object.values(examinerWorkload).reduce((a, b) => a + b, 0) / Math.max(Object.keys(examinerWorkload).length, 1) * 100) / 100}
             </div>
             <div className="text-sm text-gray-500">Avg. Sessions per Examiner</div>
           </div>
@@ -578,9 +489,17 @@ const PGAM = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentPage === 'overview' && <OverviewPage />}
-        {currentPage === 'students' && <StudentsPage />}
-        {currentPage === 'workload' && <WorkloadPage />}
+        {studentsLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="text-gray-500">Loading data...</div>
+          </div>
+        ) : (
+          <>
+            {currentPage === 'overview' && <OverviewPage />}
+            {currentPage === 'students' && <StudentsPage />}
+            {currentPage === 'workload' && <WorkloadPage />}
+          </>
+        )}
       </div>
 
       {/* Edit Modal */}
@@ -602,7 +521,7 @@ const PGAM = () => {
             </div>
 
             {modalType === 'examiners' ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Examiner 1</label>
                   <select

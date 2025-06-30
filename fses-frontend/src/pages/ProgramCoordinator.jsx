@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Users, BookOpen, Settings, Download, Lock, BarChart3, Calendar, Edit3, Check, X, Search } from 'lucide-react';
+import { User, Users, BookOpen, Settings, Download, Lock, BarChart3, Calendar, Edit3, Check, X, Search, CheckCircle, Clock, XCircle } from 'lucide-react';
 import LogoutButton from '../components/LogoutButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useStudents } from '../hooks/useStudents';
@@ -38,71 +38,425 @@ const ProgramCoordinator = () => {
 
   // Enrich students data with nomination information
   const enrichedStudents = students.map(student => {
-    const nomination = nominations.find(nom => nom.student.id === student.id);
+    const nomination = nominations.find(nom => nom.student && nom.student.id === student.id);
     
+    const supervisorName = typeof student.supervisor === 'object' 
+      ? student.supervisor.name 
+      : lecturers.find(l => l.id === student.supervisor)?.name || student.supervisor || '';
+    
+    const coSupervisorName = typeof student.co_supervisor === 'object'
+      ? student.co_supervisor?.name || ''
+      : lecturers.find(l => l.id === student.co_supervisor)?.name || '';
     
     return {
       ...student,
+      name: student.name || '',
+      program: student.program || '',
+      semester: student.semester || 1,
+      evaluationType: student.evaluation_type === 'FIRST_EVALUATION' ? 'First Evaluation' : 'Re-Evaluation',
+      mainSupervisor: supervisorName,
+      coSupervisor: coSupervisorName,
+      researchTitle: student.research_title || '',
       examiner1: nomination?.examiner1?.name || nomination?.examiner1_name || '',
       examiner2: nomination?.examiner2?.name || nomination?.examiner2_name || '',
       examiner3: nomination?.examiner3?.name || nomination?.examiner3_name || '',
-      chairperson: nomination?.chairperson || '', // This field may need to be added to Nomination model
-      status: nomination ? 'Examiners Nominated' : (student.research_title ? 'Title Submitted' : 'Pending Title'),
-      nomination: nomination
+      chairperson: nomination?.chairperson || '',
+      status: nomination ? (nomination.chairperson ? 'Chair Assigned' : 'Pending Chair Assignment') : 'Pending Examiner Nomination'
     };
   });
 
-  // Filter students for program coordinator's department (this would need to be handled by backend filtering)
-  const departmentStudents = enrichedStudents;
+  // Filter students based on search and filters
+  const filteredStudents = enrichedStudents.filter(student => {
+    const matchesSearch = searchTerm === '' || 
+      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.researchTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.mainSupervisor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student.coSupervisor && student.coSupervisor.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      student.examiner1.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.examiner2.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.examiner3.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student.chairperson && student.chairperson.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesStatus = filterStatus === 'all' || student.status === filterStatus;
+    const matchesProgram = filterProgram === 'all' || student.program === filterProgram;
+    
+    return matchesSearch && matchesStatus && matchesProgram;
+  });
+
+  const stats = {
+    total: filteredStudents.length,
+    pending: filteredStudents.filter(s => s.status === 'Pending Chair Assignment').length,
+    assigned: filteredStudents.filter(s => s.status === 'Chair Assigned').length,
+    postponed: 0
+  };
+
+  const StudentsList = () => (
+    <div className="space-y-6">
+      {/* Search and Filter Bar */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search Bar */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Search Students
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-3 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-burgundy-500"
+                placeholder="Search by name, title, supervisor, or examiner..."
+              />
+            </div>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Status
+            </label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500"
+            >
+              <option value="all">All Status</option>
+              <option value="Pending Examiner Nomination">Pending Examiner Nomination</option>
+              <option value="Pending Chair Assignment">Pending Chair Assignment</option>
+              <option value="Chair Assigned">Chair Assigned</option>
+            </select>
+          </div>
+
+          {/* Program Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Program
+            </label>
+            <select
+              value={filterProgram}
+              onChange={(e) => setFilterProgram(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500"
+            >
+              <option value="all">All Programs</option>
+              <option value="PHD">PhD</option>
+              <option value="MPHIL">MPhil</option>
+              <option value="DSE">DSE</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Actions Bar */}
+      <div className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600">
+            {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} found
+          </span>
+        </div>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleDownloadReport}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-green-700"
+          >
+            <Download size={16} />
+            <span>Download Report</span>
+          </button>
+          <button
+            onClick={handleLockNominations}
+            disabled={lockedStatus}
+            className={`px-4 py-2 rounded-lg flex items-center space-x-2 ${
+              lockedStatus 
+                ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                : 'bg-red-600 text-white hover:bg-red-700'
+            }`}
+          >
+            <Lock size={16} />
+            <span>{lockedStatus ? 'Nominations Locked' : 'Lock Nominations'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Results */}
+      {studentsLoading ? (
+        <div className="bg-white p-8 rounded-lg shadow text-center">
+          <div className="text-gray-500">Loading students...</div>
+        </div>
+      ) : filteredStudents.length === 0 ? (
+        <div className="bg-white p-8 rounded-lg shadow text-center">
+          <div className="text-gray-500">
+            <Search size={48} className="mx-auto mb-4 text-gray-300" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No students found</h3>
+            <p className="text-sm">Try adjusting your search terms or filters</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Quick Stats for Filtered Results */}
+          {(searchTerm || filterStatus !== 'all' || filterProgram !== 'all') && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+                <div className="text-sm text-gray-600">Filtered Results</div>
+                <div className="text-2xl font-bold text-gray-900">{filteredStudents.length}</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+                <div className="text-sm text-gray-600">Chair Assigned</div>
+                <div className="text-2xl font-bold text-gray-900">{stats.assigned}</div>
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
+                <div className="text-sm text-gray-600">Pending</div>
+                <div className="text-2xl font-bold text-gray-900">{stats.pending}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Students Cards Layout */}
+          <div className="space-y-4">
+            {filteredStudents.map((student) => (
+              <div key={student.id} className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                  
+                  {/* Student Info */}
+                  <div className="lg:col-span-2">
+                    <div className="text-sm font-semibold text-gray-900">{student.name}</div>
+                    <div className="text-xs text-gray-600">{student.program} - Sem {student.semester}</div>
+                    <div className="text-xs text-blue-600">{student.evaluationType}</div>
+                  </div>
+
+                  {/* Research Info */}
+                  <div className="lg:col-span-4">
+                    <div className="text-sm text-gray-900 font-medium mb-1 line-clamp-2">{student.researchTitle}</div>
+                    <div className="text-xs text-gray-600">
+                      <span className="font-medium">Supervisor:</span> {student.mainSupervisor}
+                      {student.coSupervisor && (
+                        <span className="block">
+                          <span className="font-medium">Co-Supervisor:</span> {student.coSupervisor}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Examiners */}
+                  <div className="lg:col-span-3">
+                    <div className="text-xs space-y-1">
+                      <div className="flex items-center">
+                        <CheckCircle size={12} className={student.examiner1 ? "text-green-500 mr-1" : "text-gray-300 mr-1"} />
+                        <span className={student.examiner1 ? "text-gray-700" : "text-gray-400"}>
+                          {student.examiner1 || "Pending Examiner 1"}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <CheckCircle size={12} className={student.examiner2 ? "text-green-500 mr-1" : "text-gray-300 mr-1"} />
+                        <span className={student.examiner2 ? "text-gray-700" : "text-gray-400"}>
+                          {student.examiner2 || "Pending Examiner 2"}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <CheckCircle size={12} className={student.examiner3 ? "text-green-500 mr-1" : "text-gray-300 mr-1"} />
+                        <span className={student.examiner3 ? "text-gray-700" : "text-gray-400"}>
+                          {student.examiner3 || "Pending Examiner 3"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chairperson & Status */}
+                  <div className="lg:col-span-2">
+                    <div className="text-xs mb-2">
+                      <span className="font-medium">Chairperson:</span>
+                      <span className={`block ${student.chairperson ? "text-gray-700" : "text-gray-400"}`}>
+                        {student.chairperson || "Not Assigned"}
+                      </span>
+                    </div>
+                    <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
+                      student.status === 'Chair Assigned'
+                        ? 'bg-green-100 text-green-800'
+                        : student.status === 'Pending Chair Assignment'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {student.status}
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="lg:col-span-1 flex justify-end">
+                    {student.status === 'Pending Chair Assignment' && (
+                      <button
+                        onClick={() => openModal('assign', student)}
+                        className="bg-burgundy-700 text-white px-3 py-1 rounded text-xs hover:bg-burgundy-800"
+                      >
+                        Assign Chair
+                      </button>
+                    )}
+                    {student.status === 'Chair Assigned' && (
+                      <button
+                        onClick={() => openModal('assign', student)}
+                        className="text-burgundy-700 hover:bg-burgundy-50 px-3 py-1 rounded text-xs border border-burgundy-700"
+                      >
+                        Edit Chair
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  const StatisticsView = () => {
+    const allStudents = enrichedStudents;
+    
+    return (
+      <div className="space-y-6">
+        {/* Overall Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-gray-900">{allStudents.length}</div>
+                <div className="text-sm text-gray-500">Total Students</div>
+              </div>
+              <BookOpen className="h-8 w-8 text-burgundy-600" />
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-green-600">
+                  {allStudents.filter(s => s.status === 'Chair Assigned').length}
+                </div>
+                <div className="text-sm text-gray-500">Chair Assigned</div>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {allStudents.filter(s => s.status === 'Pending Chair Assignment').length}
+                </div>
+                <div className="text-sm text-gray-500">Pending Chair</div>
+              </div>
+              <Clock className="h-8 w-8 text-yellow-600" />
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-red-600">
+                  {allStudents.filter(s => s.status === 'Pending Examiner Nomination').length}
+                </div>
+                <div className="text-sm text-gray-500">Pending Examiners</div>
+              </div>
+              <XCircle className="h-8 w-8 text-red-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Program Breakdown */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Students by Program</h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {allStudents.filter(s => s.program === 'PHD').length}
+              </div>
+              <div className="text-sm text-gray-500">PhD</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {allStudents.filter(s => s.program === 'MPHIL').length}
+              </div>
+              <div className="text-sm text-gray-500">MPhil</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-indigo-600">
+                {allStudents.filter(s => s.program === 'DSE').length}
+              </div>
+              <div className="text-sm text-gray-500">DSE</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Evaluation Type Breakdown */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Evaluation Types</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">First Evaluation</span>
+              <div className="flex items-center">
+                <div className="w-32 bg-gray-200 rounded-full h-2 mr-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full" 
+                    style={{ width: `${(allStudents.filter(s => s.evaluationType === 'First Evaluation').length / allStudents.length) * 100}%` }}
+                  ></div>
+                </div>
+                <span className="text-sm font-medium text-gray-900">
+                  {allStudents.filter(s => s.evaluationType === 'First Evaluation').length}
+                </span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">Re-Evaluation</span>
+              <div className="flex items-center">
+                <div className="w-32 bg-gray-200 rounded-full h-2 mr-2">
+                  <div 
+                    className="bg-yellow-600 h-2 rounded-full" 
+                    style={{ width: `${(allStudents.filter(s => s.evaluationType === 'Re-Evaluation').length / allStudents.length) * 100}%` }}
+                  ></div>
+                </div>
+                <span className="text-sm font-medium text-gray-900">
+                  {allStudents.filter(s => s.evaluationType === 'Re-Evaluation').length}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Modal handlers
-  const handleAssignChair = (student) => {
+  const openModal = (type, student) => {
+    setModalType(type);
     setEditingStudent(student);
-    setModalType('assign');
     setShowModal(true);
   };
 
-  const handleAutoAssign = async () => {
-    try {
-      // Auto-assignment logic
-      for (const student of departmentStudents) {
-        if (!student.chairperson && student.nomination) {
-          // Simple auto-assignment logic - assign available chairperson
-          const assignedChairs = departmentStudents
-            .filter(s => s.chairperson)
-            .map(s => s.chairperson);
-          
-          const availableChairs = chairpersons.filter(chair => 
-            !assignedChairs.includes(chair)
-          );
-          
-          if (availableChairs.length > 0) {
-            // Update the nomination with chairperson
-            const updatedNominationData = {
-              ...student.nomination,
-              chairperson: availableChairs[0] // This field may need to be added to backend
-            };
-            
-            await updateNomination(student.nomination.id, updatedNominationData);
-          }
-        }
-      }
-      alert('Auto-assignment completed!');
-    } catch (error) {
-      console.error('Error in auto-assignment:', error);
-      alert('Error in auto-assignment. Please try again.');
-    }
-  };
-
-  const handleSubmitAssignment = (studentId, chairperson) => {
-    const updatedStudents = students.map(student => 
-      student.id === studentId 
-        ? { ...student, chairperson, status: 'Chair Assigned' }
-        : student
-    );
-    setStudents(updatedStudents);
+  const closeModal = () => {
     setShowModal(false);
     setEditingStudent(null);
+  };
+
+  const handleAssignChairperson = async () => {
+    if (!editingStudent || !editingStudent.chairperson) return;
+
+    const nomination = nominations.find(nom => nom.student && nom.student.id === editingStudent.id);
+    if (nomination) {
+      const result = await updateNomination(nomination.id, {
+        ...nomination,
+        chairperson: editingStudent.chairperson
+      });
+
+      if (result.success) {
+        closeModal();
+      } else {
+        alert(`Failed to assign chairperson: ${result.error}`);
+      }
+    } else {
+      alert('No nomination found for this student. Please ensure examiners are nominated first.');
+    }
   };
 
   const handleLockNominations = () => {
@@ -144,7 +498,7 @@ const ProgramCoordinator = () => {
 
     const csvRows = [headers.join(',')];
 
-    students.forEach(student => {
+    enrichedStudents.forEach(student => {
       const row = [
         `"${student.name}"`,
         student.program,
@@ -165,512 +519,6 @@ const ProgramCoordinator = () => {
     return csvRows.join('\n');
   };
 
-  // Statistics calculation with filtered data
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = searchTerm === '' || 
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.researchTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.mainSupervisor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.coSupervisor && student.coSupervisor.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      student.examiner1.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.examiner2.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.examiner3.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (student.chairperson && student.chairperson.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = filterStatus === 'all' || student.status === filterStatus;
-    const matchesProgram = filterProgram === 'all' || student.program === filterProgram;
-    
-    return matchesSearch && matchesStatus && matchesProgram;
-  });
-
-  const stats = {
-    total: filteredStudents.length,
-    pending: filteredStudents.filter(s => s.status === 'Pending Chair Assignment').length,
-    assigned: filteredStudents.filter(s => s.status === 'Chair Assigned').length,
-    postponed: 0 // Would be calculated from actual data
-  };
-
-  const StudentsList = () => (
-    <div className="space-y-6">
-      {/* Search and Filter Bar */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search Bar */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search Students
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search by name, research title, supervisor, examiner, or chairperson..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-burgundy-500 focus:border-burgundy-500"
-              />
-            </div>
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Filter by Status
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500"
-            >
-              <option value="all">All Statuses</option>
-              <option value="Chair Assigned">Chair Assigned</option>
-              <option value="Pending Chair Assignment">Pending Assignment</option>
-            </select>
-          </div>
-
-          {/* Program Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Filter by Program
-            </label>
-            <select
-              value={filterProgram}
-              onChange={(e) => setFilterProgram(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500"
-            >
-              <option value="all">All Programs</option>
-              <option value="PhD">PhD</option>
-              <option value="MPhil">MPhil</option>
-              <option value="DSE">DSE</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Clear Filters */}
-        {(searchTerm || filterStatus !== 'all' || filterProgram !== 'all') && (
-          <div className="mt-4 flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              Showing {filteredStudents.length} of {students.length} students
-            </div>
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setFilterStatus('all');
-                setFilterProgram('all');
-              }}
-              className="text-sm text-burgundy-600 hover:text-burgundy-800 font-medium"
-            >
-              Clear all filters
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Action Bar */}
-      <div className="flex justify-between items-center">
-        <div className="flex space-x-4">
-          <button
-            onClick={handleAutoAssign}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center space-x-2"
-          >
-            <Settings size={16} />
-            <span>Auto Assign Chairs</span>
-          </button>
-          <button
-            onClick={handleDownloadReport}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center space-x-2"
-          >
-            <Download size={16} />
-            <span>Download Report</span>
-          </button>
-          <button
-            onClick={handleLockNominations}
-            disabled={lockedStatus}
-            className={`px-4 py-2 rounded-md flex items-center space-x-2 ${
-              lockedStatus 
-                ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
-                : 'bg-red-600 text-white hover:bg-red-700'
-            }`}
-          >
-            <Lock size={16} />
-            <span>{lockedStatus ? 'Nominations Locked' : 'Lock Nominations'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Results Summary */}
-      {filteredStudents.length === 0 ? (
-        <div className="bg-white p-8 rounded-lg shadow text-center">
-          <div className="text-gray-500">
-            <Search size={48} className="mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No students found</h3>
-            <p className="text-sm">Try adjusting your search terms or filters</p>
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Quick Stats for Filtered Results */}
-          {(searchTerm || filterStatus !== 'all' || filterProgram !== 'all') && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
-                <div className="text-sm text-gray-600">Filtered Results</div>
-                <div className="text-2xl font-bold text-gray-900">{filteredStudents.length}</div>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
-                <div className="text-sm text-gray-600">Chair Assigned</div>
-                <div className="text-2xl font-bold text-gray-900">{stats.assigned}</div>
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-500">
-                <div className="text-sm text-gray-600">Pending</div>
-                <div className="text-2xl font-bold text-gray-900">{stats.pending}</div>
-              </div>
-            </div>
-          )}
-
-          {/* Students Cards Layout */}
-          <div className="space-y-4">
-            {filteredStudents.map((student) => (
-              <div key={student.id} className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                  
-                  {/* Student Info */}
-                  <div className="lg:col-span-2">
-                    <div className="text-sm font-semibold text-gray-900">{student.name}</div>
-                    <div className="text-xs text-gray-600">{student.program} - Sem {student.semester}</div>
-                    <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                      {student.evaluationType}
-                    </span>
-                  </div>
-
-                  {/* Supervisor Info */}
-                  <div className="lg:col-span-2">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Supervisor</div>
-                    <div className="text-sm text-gray-900">{student.mainSupervisor}</div>
-                    {student.coSupervisor && (
-                      <div className="text-xs text-gray-500 mt-1">Co: {student.coSupervisor}</div>
-                    )}
-                  </div>
-
-                  {/* Research Title */}
-                  <div className="lg:col-span-3">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Research Title</div>
-                    <div className="text-sm text-gray-900 leading-tight" title={student.researchTitle}>
-                      {student.researchTitle.length > 80 ? 
-                        `${student.researchTitle.substring(0, 80)}...` : 
-                        student.researchTitle
-                      }
-                    </div>
-                  </div>
-
-                  {/* Examiners */}
-                  <div className="lg:col-span-2">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Examiners</div>
-                    <div className="space-y-1">
-                      <div className="text-xs">
-                        <span className="font-medium">1:</span> {student.examiner1 || 'Not assigned'}
-                      </div>
-                      <div className="text-xs">
-                        <span className="font-medium">2:</span> {student.examiner2 || 'Not assigned'}
-                      </div>
-                      <div className="text-xs">
-                        <span className="font-medium">3:</span> {student.examiner3 || 'Not assigned'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Chairperson */}
-                  <div className="lg:col-span-2">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Chairperson</div>
-                    {student.chairperson ? (
-                      <div className="flex items-center space-x-2">
-                        <Check size={14} className="text-green-500 flex-shrink-0" />
-                        <span className="text-sm text-gray-900">{student.chairperson}</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-2">
-                        <X size={14} className="text-red-500 flex-shrink-0" />
-                        <span className="text-sm text-gray-500">Not Assigned</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="lg:col-span-1 flex justify-end">
-                    <button
-                      onClick={() => handleAssignChair(student)}
-                      disabled={lockedStatus}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                        lockedStatus 
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                          : 'bg-burgundy-100 text-burgundy-700 hover:bg-burgundy-200'
-                      }`}
-                    >
-                      {student.chairperson ? 'Reassign' : 'Assign'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Status Badge */}
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    student.status === 'Chair Assigned' 
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {student.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-
-  const StatisticsView = () => (
-    <div className="space-y-8">
-      {/* Quick Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Students</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-            <Users className="h-12 w-12 text-blue-500 opacity-80" />
-          </div>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Pending Assignment</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.pending}</p>
-            </div>
-            <Calendar className="h-12 w-12 text-yellow-500 opacity-80" />
-          </div>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Chair Assigned</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.assigned}</p>
-            </div>
-            <Check className="h-12 w-12 text-green-500 opacity-80" />
-          </div>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg shadow border-l-4 border-red-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Postponed</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.postponed}</p>
-            </div>
-            <X className="h-12 w-12 text-red-500 opacity-80" />
-          </div>
-        </div>
-      </div>
-
-      {/* Progress Overview */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-xl font-semibold text-gray-900 mb-6">Assignment Progress</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          {/* Progress Bar */}
-          <div>
-            <div className="flex justify-between text-sm font-medium text-gray-700 mb-2">
-              <span>Completion Rate</span>
-              <span>{Math.round((stats.assigned / stats.total) * 100)}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-green-500 h-3 rounded-full transition-all duration-500" 
-                style={{ width: `${(stats.assigned / stats.total) * 100}%` }}
-              ></div>
-            </div>
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-sm text-gray-600">Chair Assigned: {stats.assigned}</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-                <span className="text-sm text-gray-600">Pending: {stats.pending}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Summary Stats */}
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-2">Quick Actions Needed</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                {stats.pending > 0 && (
-                  <li>• {stats.pending} student{stats.pending !== 1 ? 's' : ''} need chairperson assignment</li>
-                )}
-                {stats.assigned === stats.total && (
-                  <li className="text-green-600">• All students have been assigned chairpersons!</li>
-                )}
-                <li>• {chairpersons.length} chairpersons available</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Detailed Bar Chart Section */}
-      <div className="bg-white p-8 rounded-lg shadow">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Bar Chart */}
-          <div className="lg:col-span-2">
-            <div className="bg-burgundy-700 text-white p-4 rounded-t-lg">
-              <h3 className="text-lg font-bold">First Stage Evaluation Distribution 2024/2025</h3>
-            </div>
-            
-            <div className="border border-gray-200 rounded-b-lg p-6">
-              {/* Chart Container */}
-              <div className="relative h-80">
-                {/* Y-axis labels */}
-                <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-600 pr-2">
-                  {[16, 14, 12, 10, 8, 6, 4, 2, 0].map(num => (
-                    <span key={num}>{num}</span>
-                  ))}
-                </div>
-                
-                {/* Chart area */}
-                <div className="ml-8 h-full flex items-end justify-around space-x-4">
-                  
-                  {/* PhD Bar */}
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="w-full max-w-20 flex flex-col items-end space-y-1">
-                      {/* Sem 2 (PhD) */}
-                      <div className="w-full relative">
-                        <div 
-                          className="bg-blue-600 rounded-t transition-all duration-1000 ease-out"
-                          style={{ height: `${(0.5 / 16) * 100}%` }}
-                        ></div>
-                        <span className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-xs font-bold">1</span>
-                      </div>
-                      
-                      {/* Sem 3 (PhD) Sem 2 (MPhil) */}
-                      <div className="w-full relative">
-                        <div 
-                          className="bg-orange-500 transition-all duration-1000 ease-out"
-                          style={{ height: `${(1.5 / 16) * 240}px` }}
-                        ></div>
-                        <span className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-xs font-bold">2</span>
-                      </div>
-                      
-                      {/* Sem 4 (PhD) & Sem 3 (MPhil) */}
-                      <div className="w-full relative">
-                        <div 
-                          className="bg-gray-500 transition-all duration-1000 ease-out"
-                          style={{ height: `${(1 / 16) * 240}px` }}
-                        ></div>
-                        <span className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-xs font-bold">1</span>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-sm font-medium text-gray-700">PhD</div>
-                  </div>
-                  
-                  {/* MPhil Bar */}
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="w-full max-w-20 flex flex-col items-end space-y-1">
-                      {/* Sem 3 (MPhil) */}
-                      <div className="w-full relative">
-                        <div 
-                          className="bg-orange-500 rounded-t transition-all duration-1000 ease-out"
-                          style={{ height: `${(1 / 16) * 240}px` }}
-                        ></div>
-                        <span className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-xs font-bold">1</span>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-sm font-medium text-gray-700">MPhil</div>
-                  </div>
-                  
-                  {/* DSE Bar */}
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="w-full max-w-20 flex flex-col items-end space-y-1">
-                      {/* Re-Evaluation */}
-                      <div className="w-full relative">
-                        <div 
-                          className="bg-yellow-500 rounded-t transition-all duration-1000 ease-out"
-                          style={{ height: `${(1 / 16) * 240}px` }}
-                        ></div>
-                        <span className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-xs font-bold">1</span>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-sm font-medium text-gray-700">DSE</div>
-                  </div>
-                </div>
-                
-                {/* Grid lines */}
-                <div className="absolute inset-0 ml-8 pointer-events-none">
-                  {[0, 2, 4, 6, 8, 10, 12, 14, 16].map(num => (
-                    <div 
-                      key={num}
-                      className="absolute w-full border-t border-gray-200"
-                      style={{ bottom: `${(num / 16) * 100}%` }}
-                    ></div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Legend */}
-              <div className="mt-6 flex flex-wrap gap-4 text-sm">
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-blue-600 mr-2"></div>
-                  <span>Sem 2 (PhD)</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-orange-500 mr-2"></div>
-                  <span>Sem 3 (PhD) Sem 2 (MPhil)</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-gray-500 mr-2"></div>
-                  <span>Sem 4 (PhD) & Sem 3 (MPhil) dan ke atas</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-yellow-500 mr-2"></div>
-                  <span>Re-PD</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Summary Statistics */}
-          <div className="space-y-6">
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Total Students :</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>1) PhD –</span>
-                  <span className="font-bold">{students.filter(s => s.program === 'PhD').length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>2) MPhil –</span>
-                  <span className="font-bold">{students.filter(s => s.program === 'MPhil').length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>3) DSE –</span>
-                  <span className="font-bold">{students.filter(s => s.program === 'DSE').length}</span>
-                </div>
-              </div>
-            </div>
-            
-           
-              </div>
-            </div>
-          </div>
-        </div>
-     
-  );
-
   // Modal for assigning chairperson
   const renderModal = () => (
     showModal && modalType === 'assign' && (
@@ -687,27 +535,31 @@ const ProgramCoordinator = () => {
               </label>
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-burgundy-500"
-                defaultValue={editingStudent?.chairperson || ''}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleSubmitAssignment(editingStudent.id, e.target.value);
-                  }
-                }}
+                value={editingStudent?.chairperson || ''}
+                onChange={(e) => setEditingStudent({...editingStudent, chairperson: e.target.value})}
               >
                 <option value="">Select a chairperson</option>
-                {chairpersons.map(chair => (
-                  <option key={chair} value={chair}>{chair}</option>
+                {chairpersons.map((chair) => (
+                  <option key={chair} value={chair}>
+                    {chair}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
-          <div className="flex justify-end space-x-3 mt-6">
+          <div className="mt-6 flex justify-end space-x-3">
             <button
-              onClick={() => setShowModal(false)}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+              onClick={closeModal}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               Cancel
+            </button>
+            <button
+              onClick={handleAssignChairperson}
+              className="px-4 py-2 bg-burgundy-700 text-white rounded-md hover:bg-burgundy-800"
+            >
+              Assign
             </button>
           </div>
         </div>
@@ -725,7 +577,7 @@ const ProgramCoordinator = () => {
               <div className="h-8 w-8 rounded-full bg-burgundy-700 flex items-center justify-center">
                 <div className="text-yellow-400 text-sm font-bold">UTM</div>
               </div>
-              <h1 className="ml-3 text-xl font-bold text-burgundy-700">Program Coordinator Portal</h1>
+              <h1 className="ml-3 text-xl font-bold text-burgundy-700">Program Coordinator Dashboard</h1>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-gray-600">{user?.username || 'Coordinator'}</span>
@@ -813,8 +665,21 @@ style.sheet.insertRule(`
 style.sheet.insertRule(`
   .hover\\:bg-burgundy-200:hover {
     background-color: #fce7f3;
-    .uppercase-text {
-    text-transform: uppercase;
+  }
+`);
+style.sheet.insertRule(`
+  .hover\\:bg-burgundy-800:hover {
+    background-color: #7D1D3F;
+  }
+`);
+style.sheet.insertRule(`
+  .bg-burgundy-800 {
+    background-color: #7D1D3F;
+  }
+`);
+style.sheet.insertRule(`
+  .hover\\:bg-burgundy-50:hover {
+    background-color: #fef2f2;
   }
 `);
 

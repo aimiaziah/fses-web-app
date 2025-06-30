@@ -67,40 +67,40 @@ export const authAPI = {
   getCurrentUser: () => api.get('/auth/user/'),
 };
 
-// Student API
+// Student API - Fixed endpoints
 export const studentAPI = {
   getAll: () => api.get('/fses/api/students/'),
-  getById: (id) => api.get(`/fses/api/student/${id}/`),
-  create: (data) => api.post('/fses/api/student/create', data),  // Note the trailing slash
-  update: (id, data) => api.put(`/fses/api/student/update/${id}/`, data),
-  delete: (id) => api.delete(`/fses/api/student/delete/${id}/`),
+  getById: (id) => api.get(`/fses/api/students/${id}/`),
+  create: (data) => api.post('/api/students/create/', data),
+  update: (id, data) => api.put(`/api/students/update/${id}/`, data),
+  delete: (id) => api.delete(`/api/students/delete/${id}/`),
 };
 
-// Lecturer API
+// Lecturer API - Fixed endpoints
 export const lecturerAPI = {
   getAll: () => api.get('/fses/api/lecturers/'),
-  getById: (id) => api.get(`/fses/api/lecturer/${id}/`),
-  create: (data) => api.post('/fses/api/lecturer/create', data),
-  update: (id, data) => api.put(`/fses/api/lecturer/update/${id}/`, data),
-  delete: (id) => api.delete(`/fses/api/lecturer/delete/${id}/`),
+  getById: (id) => api.get(`/fses/api/lecturers/${id}/`),
+  create: (data) => api.post('/api/lecturers/create/', data),
+  update: (id, data) => api.put(`/api/lecturers/update/${id}/`, data),
+  delete: (id) => api.delete(`/api/lecturers/delete/${id}/`),
 };
 
 // Department API
 export const departmentAPI = {
   getAll: () => api.get('/fses/api/departments/'),
-  getById: (id) => api.get(`/fses/api/department/${id}/`),
-  create: (data) => api.post('/fses/api/department/create', data),
-  update: (id, data) => api.put(`/fses/api/department/update/${id}/`, data),
-  delete: (id) => api.delete(`/fses/api/department/delete/${id}/`),
+  getById: (id) => api.get(`/fses/api/departments/${id}/`),
+  create: (data) => api.post('/fses/api/departments/', data),
+  update: (id, data) => api.put(`/fses/api/departments/${id}/`, data),
+  delete: (id) => api.delete(`/fses/api/departments/${id}/`),
 };
 
 // Nomination API
 export const nominationAPI = {
   getAll: () => api.get('/fses/api/nominations/'),
-  getById: (id) => api.get(`/fses/api/nomination/${id}/`),
-  create: (data) => api.post('/fses/api/nomination/create', data),
-  update: (id, data) => api.put(`/fses/api/nomination/update/${id}/`, data),
-  delete: (id) => api.delete(`/fses/api/nomination/delete/${id}/`),
+  getById: (id) => api.get(`/fses/api/nominations/${id}/`),
+  create: (data) => api.post('/fses/api/nominations/', data),
+  update: (id, data) => api.put(`/fses/api/nominations/${id}/`, data),
+  delete: (id) => api.delete(`/fses/api/nominations/${id}/`),
 };
 
 export default api;
