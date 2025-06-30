@@ -13,7 +13,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     """
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AllowAny]
     
     def get_queryset(self):
         user = self.request.user

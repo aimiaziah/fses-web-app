@@ -3,7 +3,7 @@ from fses.APIs.department import *
 from fses.APIs.nomination import *
 from fses.APIs.lecturer import *
 from fses.APIs.student import *
-from fses.APIs.postponement import *
+
 
 urlpatterns = [
     # Lecturer URLs
@@ -34,10 +34,5 @@ urlpatterns = [
     path('api/student/update/<int:id>/', update_student),
     path('api/student/delete/<int:id>/', delete_student),
     
-    # Postponement URLs
-    path('api/postponement/', fetch_postponement),
-    path('api/postponement/<int:id>/', fetch_postponement),
-    path('api/postponement/create', create_postponement),
-    path('api/postponement/update/<int:id>/', update_postponement),
-    path('api/postponement/delete/<int:id>/', delete_postponement),
+
 ]

@@ -20,20 +20,22 @@ const Supervisor = () => {
   const { nominations, loading: nominationsLoading, createNomination, updateNomination } = useNominations();
 
   // Filter students based on supervisor (assuming the backend handles this filtering based on authenticated user)
-  const supervisorStudents = students.filter(student => 
-    student.supervisor && 
-    (typeof student.supervisor === 'object' ? 
-      student.supervisor.name.toLowerCase().includes(user.username.toLowerCase()) :
-      student.supervisor.toLowerCase().includes(user.username.toLowerCase())
-    )
-  );
+  const supervisorStudents = students.filter(student => {
+    if (!student.supervisor || !user?.username) return false;
+    
+    const supervisorName = typeof student.supervisor === 'object' 
+      ? student.supervisor.name || ''
+      : student.supervisor || '';
+    
+    return supervisorName.toLowerCase().includes(user.username.toLowerCase());
+  });
 
   // Filter examiners (lecturers who can be examiners)
   const examiners = lecturers.map(lecturer => ({
     id: lecturer.id,
-    name: lecturer.name,
-    department: lecturer.department?.name || lecturer.department,
-    university: lecturer.university,
+    name: lecturer.name || '',
+    department: lecturer.department?.name || lecturer.department || '',
+    university: lecturer.university || '',
     type: lecturer.university === 'UTM' ? 'internal' : 'external'
   }));
 
@@ -118,13 +120,21 @@ const Supervisor = () => {
     closeModal();
   };
 
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.programme.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStudents = supervisorStudents.filter(student => {
+    const name = student.name || '';
+    const department = typeof student.department === 'object' 
+      ? student.department?.name || '' 
+      : student.department || '';
+    const programme = student.programme || '';
+    
+    return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           programme.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const getStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
     switch (status) {
       case 'Ready for Evaluation':
         return 'bg-green-100 text-green-800';
@@ -147,7 +157,7 @@ const Supervisor = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-burgundy-700">Student Management</h2>
         <div className="text-sm text-gray-600">
-          Supervisor: Dr. Smith
+          Supervisor: {user?.username || 'Dr. Smith'}
         </div>
       </div>
 
@@ -207,17 +217,17 @@ const Supervisor = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                          <div className="text-sm font-medium text-gray-900">{student.name || 'N/A'}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {typeof student.department === 'object' ? student.department.name : student.department}
+                        {typeof student.department === 'object' ? student.department?.name || 'N/A' : student.department || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{student.programme}</div>
+                      <div className="text-sm text-gray-900">{student.programme || 'N/A'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
@@ -226,18 +236,18 @@ const Supervisor = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                          ${student.status.includes('Postponement') 
-                              ? student.status.includes('Approved') 
+                          ${(student.status || '').includes('Postponement') 
+                              ? (student.status || '').includes('Approved') 
                                   ? 'bg-yellow-100 text-yellow-800' 
                                   : 'bg-orange-100 text-orange-800'
-                              : student.status === 'Examiners Nominated' 
+                              : (student.status || '') === 'Examiners Nominated' 
                                   ? 'bg-green-100 text-green-800'
-                                  : student.status === 'Title Submitted'
+                                  : (student.status || '') === 'Title Submitted'
                                       ? 'bg-blue-100 text-blue-800'
                                       : 'bg-gray-100 text-gray-800'
                           }`}
                       >
-                        {student.status}
+                        {student.status || 'No Status'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -350,7 +360,7 @@ const Supervisor = () => {
                 .filter(examiner => examiner.university === 'UTM')
                 .map(examiner => (
                   <option key={examiner.id} value={examiner.id}>
-                    {examiner.name} ({typeof examiner.department === 'object' ? examiner.department.name : examiner.department})
+                    {examiner.name} ({examiner.department})
                   </option>
                 ))
               }
@@ -371,7 +381,7 @@ const Supervisor = () => {
                 .filter(examiner => examiner.university === 'UTM' && examiner.id !== formData.examiner1)
                 .map(examiner => (
                   <option key={examiner.id} value={examiner.id}>
-                    {examiner.name} ({typeof examiner.department === 'object' ? examiner.department.name : examiner.department})
+                    {examiner.name} ({examiner.department})
                   </option>
                 ))
               }
@@ -582,5 +592,3 @@ style.sheet.insertRule(`
 `);
 
 export default Supervisor;
-
-

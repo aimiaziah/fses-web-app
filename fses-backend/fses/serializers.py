@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, Department, Lecturer, Student, Nomination, Postponement
+from .models import CustomUser, Department, Lecturer, Student, Nomination
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -86,24 +86,8 @@ class NominationSerializer(serializers.ModelSerializer):
         model = Nomination
         fields = [
             'id', 'student', 'student_id', 
-            'examiner1', 'examiner1_id', 'examiner2', 'examiner2_id', 'examiner3', 'examiner3_id',
-            'examiner1_name', 'examiner1_email', 'examiner1_university',
-            'examiner2_name', 'examiner2_email', 'examiner2_university',
-            'created_at', 'updated_at'
-        ]
-
-class PostponementSerializer(serializers.ModelSerializer):
-    student = StudentSerializer(read_only=True)
-    student_id = serializers.PrimaryKeyRelatedField(
-        queryset=Student.objects.all(),
-        source='student',
-        write_only=True
-    )
-    
-    class Meta:
-        model = Postponement
-        fields = [
-            'id', 'student', 'student_id', 'reason', 'type', 
-            'requested_date', 'comments', 'approved',
-            'created_at', 'updated_at'
+            'examiner1', 'examiner1_id', 'examiner1_email', 'examiner1_university',
+            'examiner2', 'examiner2_id', 'examiner2_email', 'examiner2_university',
+            'examiner3', 'examiner3_id',
+            'chairperson', 'created_at', 'updated_at'
         ]

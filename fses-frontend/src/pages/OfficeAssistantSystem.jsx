@@ -224,10 +224,16 @@ const OfficeAssistantSystem = () => {
                   <tr key={student.id}>
                     <td className="px-6 py-4 whitespace-nowrap">{student.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {departments.find(dep => dep.id === student.department)?.name || student.department}
+                      {typeof student.department === 'object' 
+                        ? student.department?.name || 'N/A'
+                        : student.department || 'N/A'
+                      }
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {lecturers.find(lect => lect.id === student.supervisor)?.name || student.supervisor}
+                      {typeof student.supervisor === 'object'
+                        ? student.supervisor?.name || 'N/A'
+                        : lecturers.find(lect => lect.id === student.supervisor)?.name || student.supervisor || 'N/A'
+                      }
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">{student.program}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{student.evaluation_type}</td>
@@ -312,9 +318,14 @@ const OfficeAssistantSystem = () => {
                       {lecturerTitles.find(t => t.value === lecturer.title)?.label || lecturer.title}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {departments.find(dep => dep.id === lecturer.department)?.name || lecturer.department}
+                      {typeof lecturer.department === 'object'
+                        ? lecturer.department?.name || 'N/A'
+                        : departments.find(dep => dep.id === lecturer.department)?.name || lecturer.department || 'N/A'
+                      }
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{lecturer.university}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {lecturer.university || 'N/A'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex space-x-2">
                         <button

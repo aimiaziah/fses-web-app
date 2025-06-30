@@ -8,12 +8,9 @@ from ..serializers import LecturerSerializer  # Updated to match the actual seri
 from ..models import Lecturer
 
 class LecturerViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint that allows lecturers to be viewed or edited.
-    """
     queryset = Lecturer.objects.all()
-    serializer_class = LecturerSerializer  # Updated to match the actual serializer name
-    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = LecturerSerializer
+    permission_classes = [AllowAny]
     
     def get_queryset(self):
         user = self.request.user

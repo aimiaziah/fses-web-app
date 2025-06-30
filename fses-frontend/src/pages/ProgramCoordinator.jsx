@@ -39,7 +39,7 @@ const ProgramCoordinator = () => {
   // Enrich students data with nomination information
   const enrichedStudents = students.map(student => {
     const nomination = nominations.find(nom => nom.student.id === student.id);
-    const studentPostponements = postponements.filter(post => post.student.id === student.id);
+    
     
     return {
       ...student,
@@ -48,7 +48,6 @@ const ProgramCoordinator = () => {
       examiner3: nomination?.examiner3?.name || nomination?.examiner3_name || '',
       chairperson: nomination?.chairperson || '', // This field may need to be added to Nomination model
       status: nomination ? 'Examiners Nominated' : (student.research_title ? 'Title Submitted' : 'Pending Title'),
-      postponements: studentPostponements,
       nomination: nomination
     };
   });

@@ -57,17 +57,18 @@ class Student(models.Model):
         ('RE_EVALUATION', 'Re-Evaluation'),
     )
     
+    student_id = models.CharField(max_length=20, unique=True)  
     name = models.CharField(max_length=100)
     department = models.ForeignKey(Department, on_delete=models.CASCADE)
     supervisor = models.ForeignKey(Lecturer, on_delete=models.CASCADE, related_name='supervised_students')
+    co_supervisor = models.ForeignKey(Lecturer, on_delete=models.CASCADE, related_name='co_supervised_students', null=True, blank=True)
     program = models.CharField(max_length=10, choices=PROGRAM_CHOICES)
     evaluation_type = models.CharField(max_length=20, choices=EVALUATION_TYPE_CHOICES)
     research_title = models.CharField(max_length=255, blank=True)
     semester = models.PositiveSmallIntegerField(default=1)
-    department = models.ForeignKey(Department, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.name
+        return f"{self.student_id} - {self.name}"
 
 
 class Nomination(models.Model):
@@ -82,6 +83,7 @@ class Nomination(models.Model):
     examiner2_name = models.CharField(max_length=100, null=True, blank=True)
     examiner2_email = models.EmailField(null=True, blank=True)
     examiner2_university = models.CharField(max_length=100, null=True, blank=True)
+    chairperson = models.CharField(max_length=100, null=True, blank=True)  
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -89,22 +91,3 @@ class Nomination(models.Model):
         return f"Nomination for {self.student.name}"
 
 
-class Postponement(models.Model):
-    POSTPONEMENT_TYPE_CHOICES = (
-        ('MEDICAL', 'Medical'),
-        ('PERSONAL', 'Personal'),
-        ('ACADEMIC', 'Academic'),
-        ('OTHER', 'Other'),
-    )
-    
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='postponements')
-    reason = models.TextField()
-    type = models.CharField(max_length=20, choices=POSTPONEMENT_TYPE_CHOICES)
-    requested_date = models.DateField()
-    comments = models.TextField(blank=True)
-    approved = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    def __str__(self):
-        return f"Postponement for {self.student.name} - {self.type}"
